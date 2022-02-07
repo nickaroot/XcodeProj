@@ -90,6 +90,9 @@ public class XCRemoteSwiftPackageReference: PBXContainerItem, PlistSerializable 
             }
         }
     }
+    
+    /// Custom name.
+    public var customName: String?
 
     /// Repository url.
     public var repositoryURL: String?
@@ -102,8 +105,10 @@ public class XCRemoteSwiftPackageReference: PBXContainerItem, PlistSerializable 
     /// - Parameters:
     ///   - repositoryURL: Package repository url.
     ///   - versionRequirement: Package version rules.
-    public init(repositoryURL: String,
+    public init(customName: String? = nil,
+                repositoryURL: String,
                 versionRequirement: VersionRequirement? = nil) {
+        self.customName = customName
         self.repositoryURL = repositoryURL
         self.versionRequirement = versionRequirement
         super.init()
@@ -112,11 +117,13 @@ public class XCRemoteSwiftPackageReference: PBXContainerItem, PlistSerializable 
     enum CodingKeys: String, CodingKey {
         case requirement
         case repositoryURL
+        case customName
     }
 
     public required init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
+        customName = try container.decodeIfPresent(String.self, forKey: .customName)
         repositoryURL = try container.decodeIfPresent(String.self, forKey: .repositoryURL)
         versionRequirement = try container.decodeIfPresent(VersionRequirement.self, forKey: .requirement)
 
@@ -125,12 +132,20 @@ public class XCRemoteSwiftPackageReference: PBXContainerItem, PlistSerializable 
 
     /// It returns the name of the package reference.
     public var name: String? {
-        repositoryURL?.split(separator: "/").last?.replacingOccurrences(of: ".git", with: "")
+        guard let customName = customName else {
+            return repositoryURL?.split(separator: "/").last?.replacingOccurrences(of: ".git", with: "")
+        }
+
+        return customName
+        
     }
 
     func plistKeyAndValue(proj: PBXProj, reference: String) throws -> (key: CommentedString, value: PlistValue) {
         var dictionary = try super.plistValues(proj: proj, reference: reference)
         dictionary["isa"] = .string(CommentedString(XCRemoteSwiftPackageReference.isa))
+        if let customName = customName {
+            dictionary["customName"] = .string(.init(customName))
+        }
         if let repositoryURL = repositoryURL {
             dictionary["repositoryURL"] = .string(.init(repositoryURL))
         }
